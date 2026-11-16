@@ -272,6 +272,15 @@ def submit_match():
 # ==========================================
 # ZONE 3: FUNCTION DEFINITIONS
 # ==========================================
+def deck_change(event=None):
+    if deck_dropdown.get() == "[ Add New Deck... ]":
+        deck_dropdown.set("")
+        open_new_deck_window()
+
+def opponent_change(event=None):
+    if opponent_dropdown.get() == "[Add New Opponent...]":
+        opponent_dropdown.set("")
+        open_new_opponent_window()    
 
 def open_new_deck_window():
     new_deck_window = tk.Toplevel(root)
@@ -313,7 +322,7 @@ def open_new_deck_window():
 
 def open_new_opponent_window():
     new_opponent_window = tk.Toplevel(root)
-    new_opponent_window.title("Add New Opponent")
+    new_opponent_window.title("Add New Opponent...")
     new_opponent_window.geometry("300x150")
     new_opponent_window.grab_set()
 
@@ -499,9 +508,14 @@ purge_btn = tk.Button(
     font=("arial", 10, "bold")
 )
 
+purge_btn.grid(row=8, column=0, columnspan=2, padx=10, pady=(0, 15), sticky='nsew')
+
 format_dropdown.bind("<<ComboboxSelected>>", on_format_change)
 on_format_change() #syncs visability when the window first opens
 
-purge_btn.grid(row=8, column=0, columnspan=2, padx=10, pady=(0, 15), sticky='nsew')
+deck_dropdown.bind("<<ComboboxSelected>>", deck_change)
+opponent_dropdown.bind("<<ComboboxSelected>>", opponent_change)
+
+
 
 root.mainloop()  # Start the GUI event loop
