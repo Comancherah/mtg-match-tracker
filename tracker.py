@@ -6,7 +6,9 @@ from datetime import datetime
 import os
 
 # Define our persistent data files
-DB_FILE = 'mtg_match_ledger.csv'
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_FILE = os.path.join(BASE_DIR, 'mtg_match_ledger.csv')
+
 columns = ['date', 'deck_name', 'format', 'opponent_commander', 'result', 'mana_total']
 
 # 1. LOAD DATA: Connect to our permanent csv storage framework
