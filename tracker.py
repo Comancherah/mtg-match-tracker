@@ -1,20 +1,27 @@
 import pandas as pd
 import tkinter as tk
+import json
 from tkinter import ttk # 'ttk' is where im getting my drop down menu functionality from
 from tkinter import messagebox
+from tkinter import simpledialog
 from datetime import datetime
 import os
+from arena_parser import get_last_arena_match
+
 
 # Define our persistent data files
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_FILE = os.path.join(BASE_DIR, 'mtg_match_ledger.csv')
+CONFIG_FILE = os.path.join(BASE_DIR, 'config.json')
 
-columns = ['date', 'deck_name', 'format', 'opponent_commander', 'result', 'mana_total']
+columns = ['date', 'deck_name', 'format', 'opponent_commander', 'result', 'mana_total', 'turns']
 
 # 1. LOAD DATA: Connect to our permanent csv storage framework
 if os.path.exists(DB_FILE):
     print(f"--> File found! Loading database file: '{DB_FILE}'")
     match_history = pd.read_csv(DB_FILE)
+    if 'turns' not in match_history.columns:
+        match_history['turns'] = pd.NA
 else:
     print("--> No existing file detected. Initializing a clean match ledger spreadsheet...")
     match_history = pd.DataFrame(columns=columns)
@@ -54,6 +61,7 @@ opponent_list = combined_opponent_list + ["[Add New Opponent...]"]  # Ensure the
 Formats = ['Brawl', 'Standard Brawl', 'Commander', 'Standard', 'Modern', 'Pauper', 'Legacy', 'Timeless', 'Alchemy']
 result_options = ['Win', 'Loss']
 mana_options = list(range(0, 50))  # Assuming a max of 50 lands on the field should never be this high.... but yea
+turns_options = list(range(0, 100)) # If you playing a 100 round match of MTG.....
 
 # Stats, anyone? Also all Def functions
 def calculate_stats():
@@ -125,12 +133,18 @@ def calculate_stats():
                 total_wins = len(filtered_df[filtered_df['result'] == 'Win'])
                 overall_wr = (total_wins / total_games) * 100
                 avg_lands = filtered_df['mana_total'].mean()
+                valid_turns = filtered_df[filtered_df['turns'].notna() & (filtered_df['turns'] > 0)]
+                avg_turns = valid_turns['turns'].mean() if not valid_turns.empty else 0
 
                 lines = []
                 lines.append("=" * 46)
                 lines.append(f"{selected_filter.upper()} SUMMARY")
                 lines.append(f"RECORD: {total_wins}W - {total_games - total_wins}L ({overall_wr:.1f}%)")
                 lines.append(f"AVG ENDING LANDS: {avg_lands:.1f}")
+                if not valid_turns.empty:
+                    curve_ratio = (valid_turns['mana_total'] / valid_turns['turns']).mean()
+                    curve_diff = (valid_turns['mana_total'] - valid_turns['turns']).mean()
+                    lines.append(f"AVG. MANA CURVE:  {curve_diff:+.1f} lands Vs. Turn(s) ({curve_ratio * 100:.0f}%)")
                 lines.append("=" * 46)
 
                 # --- PER-FORMAT DECK & COMMANDER BREAKDOWN ---
@@ -140,17 +154,38 @@ def calculate_stats():
                     f_wr = (f_wins / f_games) * 100
                     f_lands = fmt_group['mana_total'].mean()
 
+                    f_valid_turns = fmt_group[fmt_group['turns'].notna() & (fmt_group['turns'] > 0)]
+                    f_turns = f_valid_turns['turns'].mean() if not f_valid_turns.empty else 0
+
                     lines.append(f"\n=== {fmt.upper()} ({f_games} Games) ===")
-                    lines.append(f"Record: {f_wins}W-{f_games - f_wins}L ({f_wr:.1f}%) | Avg Lands: {f_lands:.1f}")
+                    lines.append(f"Record: {f_wins}W-{f_games - f_wins}L ({f_wr:.1f}%) | Avg Lands: {f_lands:.1f} | Avg Turns: {f_turns:.1f}")
+                    if not f_valid_turns.empty:
+                        f_curve_ratio = (f_valid_turns['mana_total'] / f_valid_turns['turns']).mean()
+                        f_curve_diff = (f_valid_turns['mana_total'] - f_valid_turns['turns']).mean()
+                        lines.append(f"Avg Mana Curve: {f_curve_diff:+.1f} lands vs turn ({f_curve_ratio * 100:.0f}%)")
                     lines.append("-" * 46)
 
-                    # Deck win rates inside this specific format
+
+                    # Deck win rates & mana curve inside this specific format
                     for deck, deck_group in fmt_group.groupby('deck_name'):
                         d_games = len(deck_group)
                         d_wins = len(deck_group[deck_group['result'] == 'Win'])
                         d_wr = (d_wins / d_games) * 100
                         d_lands = deck_group['mana_total'].mean()
-                        lines.append(f"• {deck}: {d_wins}W-{d_games - d_wins}L ({d_wr:.1f}%) | Lands: {d_lands:.1f}")
+
+                        d_valid_turns = deck_group[deck_group['turns'].notna() & (deck_group['turns'] > 0)]
+                        if not d_valid_turns.empty:
+                            d_turns = d_valid_turns['turns'].mean()
+                            d_curve_ratio = (d_valid_turns['mana_total'] / d_valid_turns['turns']).mean()
+                            d_curve_diff = (d_valid_turns['mana_total'] - d_valid_turns['turns']).mean()
+                            lines.append(
+                                f"• {deck}: {d_wins}W-{d_games - d_wins}L ({d_wr:.1f}%) | "
+                                f"Lands: {d_lands:.1f} | Turns: {d_turns:.1f} | "
+                                f"Curve: {d_curve_diff:+.1f} ({d_curve_ratio * 100:.0f}%)"
+                            )
+                        else:
+                            lines.append(f"• {deck}: {d_wins}W-{d_games - d_wins}L ({d_wr:.1f}%) | Lands: {d_lands:.1f}")
+
 
                     # Separate Commander / Brawl opponent breakdown per format
                     if fmt not in NON_COMMANDER_FORMATS:
@@ -262,6 +297,7 @@ def submit_match():
     enemy_commander = opponent_dropdown.get().strip() # normalize the opponent name by stripping whitespace (read NO SPACES)
     selected_result = result_dropdown.get()
     selected_mana_total = mana_dropdown.get()
+    selected_turns = turns_dropdown.get()
 
     # Validate that all fields are filled
 
@@ -270,6 +306,50 @@ def submit_match():
         return
 
     # OK building some backend stuff for later (pop up window)
+
+#Making things easier... unless you ask the code, it might complain... it is a snake after all
+def get_or_ask_player_name():
+    if os.path.exists(CONFIG_FILE):
+        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+            config = json.load(f)
+            if config.get("player_name"):
+                return config["player_name"]
+
+    name = simpledialog.askstring(
+        "MTG Arena Setup",
+        "Enter your MTG Arena Display Name\n(without the #12345 numbers):",
+        parent=root
+    )
+    if name and name.strip():
+        clean_name = name.strip()
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump({"player_name": clean_name}, f, indent=4)
+        return clean_name
+    return None
+
+# Import last Match (hope this works)
+def get_last_match():
+    player_name = get_or_ask_player_name()
+    if not player_name:
+        return
+    
+    match = get_last_arena_match(player_name)
+    if match == None:
+        messagebox.showinfo("Arena Import", "No Match Data Available, play some games")
+    elif match['format'] == "Bot Match":
+        messagebox.showinfo("Arena Import", "Match with Sparky - No Data pulled")
+    else:
+        if match['deck_name'] not in deck_list:
+            deck_list.insert(-1, match['deck_name'])
+            deck_list[:-1] = sorted(deck_list[:-1], key=str.lower)
+            deck_dropdown['values'] = deck_list
+
+        deck_dropdown.set(match['deck_name'])
+        format_dropdown.set(match['format'])
+        on_format_change()
+        result_dropdown.set(match['result'])
+        turns_dropdown.set(match['turns'])
+
 
 # ==========================================
 # ZONE 3: FUNCTION DEFINITIONS
@@ -377,6 +457,7 @@ def submit_match():
     enemy_commander = opponent_dropdown.get().strip()
     selected_result = result_dropdown.get()
     selected_mana_total = mana_dropdown.get()
+    selected_turns = turns_dropdown.get()
 
     # Check for "Add New..." triggers BEFORE checking if all fields are filled
     if selected_deck == "[ Add New Deck... ]":
@@ -409,7 +490,8 @@ def submit_match():
         'format': selected_format,
         'opponent_commander': enemy_commander,
         'result': selected_result,
-        'mana_total': int(selected_mana_total)
+        'mana_total': int(selected_mana_total),
+        'turns': int(selected_turns) if selected_turns else 0
     }
 
     # Check for add New triggers First
@@ -467,6 +549,11 @@ mana_lbl.grid(row=4, column=0, padx=10, pady=5, sticky='w')
 mana_dropdown = ttk.Combobox(root, values=mana_options, state="readonly")
 mana_dropdown.grid(row=4, column=1, padx=10, pady=5, sticky='w')
 
+turns_lbl = ttk.Label(root, text="Turn Counter:")
+turns_lbl.grid(row=5, column=0, padx=10, pady=5, sticky='w')
+turns_dropdown = ttk.Combobox(root, values=turns_options, state="readonly")
+turns_dropdown.grid(row=5, column=1, padx=10, pady=5, sticky='w')
+
 # row 5: live status / feedback banner
 status_lbl = tk.Label(
     root, 
@@ -476,7 +563,7 @@ status_lbl = tk.Label(
     wraplength=360,
     justify="center"
 )
-status_lbl.grid(row=5, column=0, columnspan=2, padx=10, pady=(0, 15), sticky='nsew')
+status_lbl.grid(row=6, column=0, columnspan=2, padx=10, pady=(0, 15), sticky='nsew')
 
 # Master Submit, kinda like the master emerald, but not as powerful, and not as green, and not as shiny, and not as valuable, and not as rare, and not as expensive, and not as useful, and not as good, and not as cool, and not as fun, and not as interesting, and not as exciting, and not as entertaining, and not as enjoyable, and not as satisfying, and not as rewarding, and not as fulfilling, and not as meaningful, and not as significant, and not as impactful, and not as influential, and not as important, and not as relevant, and not as applicable, and not as practical, and not as useful, and not as beneficial, and not as advantageous, and not as helpful, and not as supportive, and not as encouraging, and not as motivating, and not as inspiring, but still pretty good.
 submit_btn = tk.Button(
@@ -487,7 +574,18 @@ submit_btn = tk.Button(
     fg="white", 
     font=("arial", 12, "bold")
 )
-submit_btn.grid(row=6, column=0, columnspan=2, pady=20, sticky='nsew')
+submit_btn.grid(row=7, column=0, columnspan=2, pady=20, sticky='nsew')
+
+# Pull last match from Arena (providing everything works....)
+import_btn = tk.Button(
+    root,
+    text="Import Last Match",
+    command=get_last_match,
+    bg="#4a148c",
+    fg="white",
+    font=("arial", 11, "bold")
+)
+import_btn.grid(row=8, column=0, columnspan=2, padx=10, pady=(0, 15), sticky='nsew')
 
 # Calculate Stats Button
 stats_btn = tk.Button(
@@ -498,7 +596,7 @@ stats_btn = tk.Button(
     fg="white", 
     font=("arial", 12, "bold")
 )
-stats_btn.grid(row=7, column=0, columnspan=2, pady=10, sticky='nsew')
+stats_btn.grid(row=9, column=0, columnspan=2, pady=10, sticky='nsew')
 
 # Row 7: Season Reset / Purge Button
 purge_btn = tk.Button(
@@ -510,7 +608,7 @@ purge_btn = tk.Button(
     font=("arial", 10, "bold")
 )
 
-purge_btn.grid(row=8, column=0, columnspan=2, padx=10, pady=(0, 15), sticky='nsew')
+purge_btn.grid(row=10, column=0, columnspan=2, padx=10, pady=(0, 15), sticky='nsew')
 
 format_dropdown.bind("<<ComboboxSelected>>", on_format_change)
 on_format_change() #syncs visability when the window first opens
