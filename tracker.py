@@ -6,11 +6,18 @@ from tkinter import messagebox
 from tkinter import simpledialog
 from datetime import datetime
 import os
+import sys
 from arena_parser import get_last_arena_match
 
 
 # Define our persistent data files
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+if getattr(sys, 'frozen', False):
+    BASE_DIR = os.path.join(os.environ.get('LOCALAPPDATA', os.path.expanduser('~')), 'MTG_Match_Tracker')
+    os.makedirs(BASE_DIR, exist_ok=True)
+else:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
 DB_FILE = os.path.join(BASE_DIR, 'mtg_match_ledger.csv')
 CONFIG_FILE = os.path.join(BASE_DIR, 'config.json')
 
