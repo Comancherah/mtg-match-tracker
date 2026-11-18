@@ -13,7 +13,7 @@ A lightweight Python desktop application built with `tkinter` and `pandas` for l
 * **Live Status Banner:** Color-coded in-app feedback for missing fields, new entries, and logged matches.
 * **Format-Filtered Season Analytics Pop-Up:** Opens a scrollable report with a **Filter Format** dropdown (`All Formats` or individual formats), breaking down win rates, average ending lands, average game length (turns), and **Mana Curve Efficiency** (`+/-` lands vs. turn curve and percentage ratio) at the **Overall**, **Per-Format**, and **Per-Deck** levels—alongside separate **Top Nemesis** and **Most Faced Commanders** lists for Commander/Brawl formats (`Commander`, `Standard Brawl`, `Brawl`).
 * **Season Reset (`Purge`):** Wipe your ledger with a confirmation prompt to start a fresh season and reset dropdowns back to defaults.
-* **Local CSV Persistence:** Saves all match data automatically to `mtg_match_ledger.csv` in the application directory.
+* **Local CSV Persistence:** Saves all match data automatically to `mtg_match_ledger.csv` (stored in `%LOCALAPPDATA%\MTG_Match_Tracker` when running the standalone `.exe`/installer, or in the application folder when running from source).
 
 * **Side Note:** Developer is a fan of the Ravnica Guilds you may find the various automated messages to ALSO be fans of the Ravnica Guilds.
 
@@ -23,36 +23,32 @@ A lightweight Python desktop application built with `tkinter` and `pandas` for l
 MTG-Match-Tracker/
 ├── tracker.py              # Main Tkinter GUI, config setup, CSV persistence, and analytics engine
 ├── arena_parser.py         # MTG Arena Player.log parser & queue-to-format mapper
+├── installer.iss           # Inno Setup script for building the Windows installer
 ├── mtg_match_ledger.csv    # Auto-generated persistent match database
 ├── config.json             # Auto-generated local config storing your MTG Arena display name
 └── README.md               # Project documentation
 ```
 
-## 🛠️ Requirements
-
-* Python 3.10+
-* `pandas` (`tkinter` is included with standard Python installations on Windows/macOS)
-
 ## 🚀 Getting Started
 
+### Option 1: Windows Installer / Standalone `.exe` (No Python Required)
+1. Download **`MTG_Tracker_Setup_v1.0.0.exe`** (full installer) or **`MTG_Tracker.exe`** (portable) from the [**Releases**](https://github.com) page.
+2. Launch **MTG Match Tracker** and click **Import Last Match** after finishing an Arena game to enter your MTG Arena Display Name (without the `#12345` tag).
+
+### Option 2: Run From Source (Python 3.10+)
 1. **Clone the repository:**
    ```bash
    git clone https://github.com
-   cd MTG-Match-Tracker
+   cd mtg-match-tracker
    ```
-
 2. **Install dependencies:**
    ```bash
    pip install pandas
    ```
-
 3. **Run the tracker:**
    ```bash
    python tracker.py
    ```
-
-4. **First-Time MTG Arena Import Setup:**
-   * Click **Import Last Match** after finishing an Arena game and enter your MTG Arena Display Name (without the `#12345` tag) when prompted. Your name is saved automatically to `config.json`.
 
 ## 📊 CSV Data Structure
 
@@ -67,3 +63,7 @@ The app automatically generates `mtg_match_ledger.csv` on first launch with the 
 | `result` | `Win` or `Loss` |
 | `mana_total` | Total lands in play at the end of the game |
 | `turns` | Final turn counter at the end of the match |
+
+---
+
+*MTG Match Tracker is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC.*
