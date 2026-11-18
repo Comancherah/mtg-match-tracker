@@ -5,4 +5,4 @@ dist/
 mtg_match_ledger.csv
 arena_log_peek.py
 config.json
-
+installer_output/
