@@ -33,10 +33,74 @@ else:
     print("--> No existing file detected. Initializing a clean match ledger spreadsheet...")
     match_history = pd.DataFrame(columns=columns)
 
+GUILD_THEMES = {
+    "Orzhov Syndicate (Default)": {
+        "bg": "#1e1b24", "fg": "#f5f0e6", "btn_bg": "#4a148c",
+        "btn_fg": "#ffd700", "accent": "#c5a059", "guild_font": "Georgia",
+        "tagline": "Status: The Orzhov ledger awaits your entry."
+    },
+    "Azorius Senate": {
+        "bg": "#e8f1f8", "fg": "#0d2b45", "btn_bg": "#1565c0",
+        "btn_fg": "#ffffff", "accent": "#90caf9", "guild_font": "Calibri",
+        "tagline": "Status: Form 104-B ready for filing."
+    },
+    "House Dimir": {
+        "bg": "#0f172a", "fg": "#cbd5e1", "btn_bg": "#1e3a8a",
+        "btn_fg": "#38bdf8", "accent": "#0284c7", "guild_font": "Consolas",
+        "tagline": "Status: Whispered records encrypted."
+    },
+    "Cult of Rakdos": {
+        "bg": "#1a0505", "fg": "#ffedd5", "btn_bg": "#b91c1c",
+        "btn_fg": "#fbbf24", "accent": "#ef4444", "guild_font": "Chiller",
+        "tagline": "Status: Let the carnage commence!"
+    },
+    "Gruul Clans": {
+        "bg": "#1c1917", "fg": "#fef3c7", "btn_bg": "#b45309",
+        "btn_fg": "#86efac", "accent": "#15803d", "guild_font": "Impact",
+        "tagline": "Status: SMASH! LOG! REPEAT!"
+    },
+    "Selesnya Conclave": {
+        "bg": "#f0fdf4", "fg": "#14532d", "btn_bg": "#15803d",
+        "btn_fg": "#fef08a", "accent": "#22c55e", "guild_font": "Book Antiqua",
+        "tagline": "Status: Harmony in every recorded match."
+    },
+    "Izzet League": {
+        "bg": "#0c192c", "fg": "#e0f2fe", "btn_bg": "#dc2626",
+        "btn_fg": "#38bdf8", "accent": "#2563eb", "guild_font": "Courier New",
+        "tagline": "Status: Experimenting with volatile data!"
+    },
+    "Golgari Swarm": {
+        "bg": "#111a12", "fg": "#d9f99d", "btn_bg": "#365314",
+        "btn_fg": "#bef264", "accent": "#4d7c0f", "guild_font": "Trebuchet MS",
+        "tagline": "Status: Reclaiming past matches from the undergrowth."
+    },
+    "Boros Legion": {
+        "bg": "#fffbeb", "fg": "#7f1d1d", "btn_bg": "#dc2626",
+        "btn_fg": "#fef08a", "accent": "#f59e0b", "guild_font": "Franklin Gothic Medium",
+        "tagline": "Status: Swift justice on the battlefield!"
+    },
+    "Simic Combine": {
+        "bg": "#042f2e", "fg": "#ccfbf1", "btn_bg": "#0d9488",
+        "btn_fg": "#bef264", "accent": "#10b981", "guild_font": "Lucida Console",
+        "tagline": "Status: Evolving win-rate specimens..."
+    }
+}
+
+
 # 2. Collect the data from the user via a simple GUI
 root = tk.Tk()
 root.title("MTG Match Tracker")
 root.geometry("400x500") # basic layout for the GUI window
+
+def resource_path(relative_path):
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, relative_path)
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), relative_path)
+
+icon_file = resource_path("tracker.ico")
+if os.path.exists(icon_file):
+    root.iconbitmap(icon_file)
+
 
 # now that weve built the basics, need data
 default_deck_list = ['How Illogical', 'Tremors', 'Answers']  # Example deck names
@@ -69,6 +133,7 @@ Formats = ['Brawl', 'Standard Brawl', 'Commander', 'Standard', 'Modern', 'Pauper
 result_options = ['Win', 'Loss']
 mana_options = list(range(0, 50))  # Assuming a max of 50 lands on the field should never be this high.... but yea
 turns_options = list(range(0, 100)) # If you playing a 100 round match of MTG.....
+
 
 # Stats, anyone? Also all Def functions
 def calculate_stats():
@@ -311,6 +376,9 @@ def submit_match():
     if not all([selected_deck, selected_format, enemy_commander, selected_result, selected_mana_total]):
         messagebox.showerror("Incomplete Information", "Please fill in all fields.")
         return
+    
+    #So the wrong name doest get saved
+    opponent_dropdown.set('')
 
     # OK building some backend stuff for later (pop up window)
 
@@ -457,6 +525,52 @@ def open_new_opponent_window():
     save_opponent_btn = ttk.Button(new_opponent_window, text="Save Opponent", command=save_new_opponent)
     save_opponent_btn.pack(pady=10)
 
+def apply_guild_theme(event=None):
+    selected_guild = style_dropdown.get()
+    if selected_guild not in GUILD_THEMES:
+        selected_guild = "Orzhov Syndicate (Default)"
+        style_dropdown.set(selected_guild)
+
+    theme = GUILD_THEMES[selected_guild]
+
+    #1. Repaint the main window background and TTK label styles
+    root.configure(bg=theme["bg"])
+
+    guild_font = theme.get("guild_font", "arial")
+    style.configure("TLabel", background=theme["bg"], foreground=theme["fg"], font=(guild_font, 10, "bold"))
+    style.configure("TCombobox", fieldbackground=theme["bg"], background=theme["btn_bg"], foreground=theme["fg"], arrowcolor=theme["fg"])
+    style.map("TCombobox", fieldbackground=[("readonly", theme["bg"])], foreground=[("readonly", theme["fg"])])
+
+    for combo in (style_dropdown, deck_dropdown, format_dropdown, opponent_dropdown, result_dropdown, mana_dropdown, turns_dropdown):
+        combo.config(font=(guild_font, 10))
+
+      
+    # 2. Update the Status banner to match the guilds palette and flavor tagline
+    status_lbl.config(
+        text=theme["tagline"],
+        bg=theme["bg"],
+        fg=theme["fg"],
+        font=(guild_font, 14, "bold"),
+        wraplength=370
+    )
+    
+    submit_btn.config(bg=theme["btn_bg"], fg=theme["btn_fg"], activebackground=theme["accent"], font=(guild_font, 12, "bold"))
+    import_btn.config(bg=theme["accent"], fg=theme["btn_fg"], activebackground=theme["btn_bg"], font=(guild_font, 11, "bold"))
+    stats_btn.config(bg=theme["btn_bg"], fg=theme["btn_fg"], activebackground=theme["accent"], font=(guild_font, 12, "bold"))
+    purge_btn.config(font=(guild_font, 10, "bold"))
+
+    # Save to JSON so it auto loads selected guild on launch
+    config = {}
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                config = json.load(f)
+        except Exception:
+            config = {}
+
+    config["guild_theme"] = selected_guild
+    with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+        json.dump(config, f, indent=4)
 
 def submit_match():
     selected_deck = deck_dropdown.get()
@@ -526,51 +640,63 @@ def submit_match():
     )
 
     # Clear match specific entries
+    # Clear match specific entries
+    if format_dropdown.get() not in NON_COMMANDER_FORMATS:
+        opponent_dropdown.set('')
     mana_dropdown.set('')
     result_dropdown.set('')
+    turns_dropdown.set('')
     
 
 # 2.1 GUI: Create the dropdowns for user input
+style = ttk.Style()
+style.theme_use('clam')
+
+style_lbl = ttk.Label(root, text="Guild Theme:")
+style_lbl.grid(row=0, column=0, padx=10, pady=5, sticky='w')
+style_dropdown = ttk.Combobox(root, values=list(GUILD_THEMES.keys()), state='readonly')
+style_dropdown.grid(row=0, column=1, padx=10, pady=5, sticky='w')
+
 deck_lbl = ttk.Label(root, text="Select Deck:")
-deck_lbl.grid(row=0, column=0, padx=10, pady=5, sticky='w')
+deck_lbl.grid(row=1, column=0, padx=10, pady=5, sticky='w')
 deck_dropdown = ttk.Combobox(root, values=deck_list, state="readonly")
-deck_dropdown.grid(row=0, column=1, padx=10, pady=5, sticky='w')
+deck_dropdown.grid(row=1, column=1, padx=10, pady=5, sticky='w')
 
 format_lbl = ttk.Label(root, text="Select Format:")
-format_lbl.grid(row=1, column=0, padx=10, pady=5, sticky='w')
+format_lbl.grid(row=2, column=0, padx=10, pady=5, sticky='w')
 format_dropdown = ttk.Combobox(root, values=Formats, state="readonly")
-format_dropdown.grid(row=1, column=1, padx=10, pady=5, sticky='w')
+format_dropdown.grid(row=2, column=1, padx=10, pady=5, sticky='w')
 
 opponent_lbl = ttk.Label(root, text="Select Opponent:")
-opponent_lbl.grid(row=2, column=0, padx=10, pady=5, sticky='w')
+opponent_lbl.grid(row=3, column=0, padx=10, pady=5, sticky='w')
 opponent_dropdown = ttk.Combobox(root, values=opponent_list, state="readonly")
-opponent_dropdown.grid(row=2, column=1, padx=10, pady=5, sticky='w')
+opponent_dropdown.grid(row=3, column=1, padx=10, pady=5, sticky='w')
 
 result_lbl = ttk.Label(root, text="Match Result:")
-result_lbl.grid(row=3, column=0, padx=10, pady=5, sticky='w')
+result_lbl.grid(row=4, column=0, padx=10, pady=5, sticky='w')
 result_dropdown = ttk.Combobox(root, values=result_options, state="readonly")
-result_dropdown.grid(row=3, column=1, padx=10, pady=5, sticky='w')
+result_dropdown.grid(row=4, column=1, padx=10, pady=5, sticky='w')
 
 mana_lbl = ttk.Label(root, text="Total Lands At End:")
-mana_lbl.grid(row=4, column=0, padx=10, pady=5, sticky='w')
+mana_lbl.grid(row=5, column=0, padx=10, pady=5, sticky='w')
 mana_dropdown = ttk.Combobox(root, values=mana_options, state="readonly")
-mana_dropdown.grid(row=4, column=1, padx=10, pady=5, sticky='w')
+mana_dropdown.grid(row=5, column=1, padx=10, pady=5, sticky='w')
 
 turns_lbl = ttk.Label(root, text="Turn Counter:")
-turns_lbl.grid(row=5, column=0, padx=10, pady=5, sticky='w')
+turns_lbl.grid(row=6, column=0, padx=10, pady=5, sticky='w')
 turns_dropdown = ttk.Combobox(root, values=turns_options, state="readonly")
-turns_dropdown.grid(row=5, column=1, padx=10, pady=5, sticky='w')
+turns_dropdown.grid(row=6, column=1, padx=10, pady=5, sticky='w')
 
 # row 5: live status / feedback banner
 status_lbl = tk.Label(
     root, 
     text="Status: Ready to log match.",
     foreground="#555555",
-    font=("arial", 10, "italic"),
+    font=("arial", 15, "italic"),
     wraplength=360,
     justify="center"
 )
-status_lbl.grid(row=6, column=0, columnspan=2, padx=10, pady=(0, 15), sticky='nsew')
+status_lbl.grid(row=7, column=0, columnspan=2, padx=10, pady=(0, 15), sticky='nsew')
 
 # Master Submit, kinda like the master emerald, but not as powerful, and not as green, and not as shiny, and not as valuable, and not as rare, and not as expensive, and not as useful, and not as good, and not as cool, and not as fun, and not as interesting, and not as exciting, and not as entertaining, and not as enjoyable, and not as satisfying, and not as rewarding, and not as fulfilling, and not as meaningful, and not as significant, and not as impactful, and not as influential, and not as important, and not as relevant, and not as applicable, and not as practical, and not as useful, and not as beneficial, and not as advantageous, and not as helpful, and not as supportive, and not as encouraging, and not as motivating, and not as inspiring, but still pretty good.
 submit_btn = tk.Button(
@@ -581,7 +707,7 @@ submit_btn = tk.Button(
     fg="white", 
     font=("arial", 12, "bold")
 )
-submit_btn.grid(row=7, column=0, columnspan=2, pady=20, sticky='nsew')
+submit_btn.grid(row=8, column=0, columnspan=2, pady=20, sticky='nsew')
 
 # Pull last match from Arena (providing everything works....)
 import_btn = tk.Button(
@@ -592,7 +718,7 @@ import_btn = tk.Button(
     fg="white",
     font=("arial", 11, "bold")
 )
-import_btn.grid(row=8, column=0, columnspan=2, padx=10, pady=(0, 15), sticky='nsew')
+import_btn.grid(row=9, column=0, columnspan=2, padx=10, pady=(0, 15), sticky='nsew')
 
 # Calculate Stats Button
 stats_btn = tk.Button(
@@ -603,7 +729,7 @@ stats_btn = tk.Button(
     fg="white", 
     font=("arial", 12, "bold")
 )
-stats_btn.grid(row=9, column=0, columnspan=2, pady=10, sticky='nsew')
+stats_btn.grid(row=10, column=0, columnspan=2, pady=10, sticky='nsew')
 
 # Row 7: Season Reset / Purge Button
 purge_btn = tk.Button(
@@ -615,13 +741,25 @@ purge_btn = tk.Button(
     font=("arial", 10, "bold")
 )
 
-purge_btn.grid(row=10, column=0, columnspan=2, padx=10, pady=(0, 15), sticky='nsew')
+purge_btn.grid(row=11, column=0, columnspan=2, padx=10, pady=(0, 15), sticky='nsew')
 
 format_dropdown.bind("<<ComboboxSelected>>", on_format_change)
 on_format_change() #syncs visability when the window first opens
 
 deck_dropdown.bind("<<ComboboxSelected>>", deck_change)
 opponent_dropdown.bind("<<ComboboxSelected>>", opponent_change)
+
+saved_guild = "Orshov Syndicate (Default)"
+if os.path.exists(CONFIG_FILE):
+    try:
+        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+            saved_guild = json.load(f).get("guild_theme", saved_guild)
+    except Exception:
+        pass
+
+style_dropdown.set(saved_guild)
+style_dropdown.bind("<<ComboboxSelected>>", apply_guild_theme)
+apply_guild_theme()
 
 
 
